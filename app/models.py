@@ -1,8 +1,9 @@
 import uuid
+from datetime import datetime
 
 from pydantic import EmailStr
 from sqlmodel import Field, Relationship, SQLModel
-
+from sqlalchemy import text
 
 # Shared properties
 class UserBase(SQLModel):
@@ -15,6 +16,8 @@ class UserBase(SQLModel):
 # Properties to receive via API on creation
 class UserCreate(UserBase):
     password: str = Field(min_length=8, max_length=128)
+
+    created_at: datetime = Field(default=datetime.now())
 
 
 class UserRegister(SQLModel):
@@ -45,10 +48,29 @@ class User(UserBase, table=True):
     hashed_password: str
     items: list["Item"] = Relationship(back_populates="owner", cascade_delete=True)
 
+    created_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        nullable=False,
+        sa_column_kwargs={
+            "server_default": text("current_timestamp(0)")  # 기존 데이터에 현재 시간 입력
+        }
+    )
+
+    # [추가] 수정 시간
+    updated_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        nullable=False,
+        sa_column_kwargs={
+            "server_default": text("current_timestamp(0)"),  # 기존 데이터에 현재 시간 입력
+            "onupdate": text("current_timestamp(0)")  # 데이터 수정 시 DB가 알아서 시간 갱신
+        }
+    )
 
 # Properties to return via API, id is always required
 class UserPublic(UserBase):
     id: uuid.UUID
+    created_at: datetime
+    updated_at: datetime
 
 
 class UsersPublic(SQLModel):
@@ -80,13 +102,30 @@ class Item(ItemBase, table=True):
         foreign_key="user.id", nullable=False, ondelete="CASCADE"
     )
     owner: User | None = Relationship(back_populates="items")
-
+    created_at: datetime = Field(
+        default_factory=datetime.now,
+        nullable=False,
+        sa_column_kwargs={
+            "server_default": text("current_timestamp(0)")
+        }
+    )
+    updated_at: datetime = Field(
+        default_factory=datetime.now,
+        nullable=False,
+        sa_column_kwargs={
+            "server_default": text("current_timestamp(0)"),
+            "onupdate": text("current_timestamp(0)")
+        }
+    )
 
 # Properties to return via API, id is always required
 class ItemPublic(ItemBase):
     id: uuid.UUID
     owner_id: uuid.UUID
-
+    # 작성자 정보를 포함 (UserPublic 스키마 재사용)
+    owner: UserPublic | None = None
+    created_at: datetime
+    updated_at: datetime
 
 class ItemsPublic(SQLModel):
     data: list[ItemPublic]
