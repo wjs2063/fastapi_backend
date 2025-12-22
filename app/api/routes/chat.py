@@ -42,7 +42,7 @@ def get_current_user_ws(
     return user
 
 
-@router.websocket("/ws")
+@router.websocket("/menu-recommend/ws")
 async def websocket_endpoint(
         websocket: WebSocket,
         # WebSocket 연결 시 Query Parameter로 token을 받습니다.
@@ -60,7 +60,6 @@ async def websocket_endpoint(
         return
 
     await websocket.accept()
-
     if agent_executor is None:
         await websocket.send_text("System Error: Agent not initialized.")
         await websocket.close()
@@ -77,7 +76,9 @@ async def websocket_endpoint(
             # 예: response = await agent_executor.ainvoke({"input": data, "user_id": user.id})
 
             try:
+                print("사용자 질문 : ",data)
                 response = await agent_executor.ainvoke(data)
+                print("Agent 응답 : ",response)
                 await websocket.send_text(response.content)
             except Exception as e:
                 logger.error(f"Agent Execution Error: {e}")

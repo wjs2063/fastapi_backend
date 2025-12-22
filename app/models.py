@@ -1,9 +1,11 @@
 import uuid
-from datetime import datetime
 
 from pydantic import EmailStr
 from sqlmodel import Field, Relationship, SQLModel
 from sqlalchemy import text
+from datetime import datetime
+from uuid import UUID
+
 
 # Shared properties
 class UserBase(SQLModel):
@@ -151,3 +153,29 @@ class TokenPayload(SQLModel):
 class NewPassword(SQLModel):
     token: str
     new_password: str = Field(min_length=8, max_length=128)
+
+
+
+
+
+# 1. 사용자 취향 (1:1 관계 - User당 1개)
+# 성격: 상태 (State)
+class UserPreference(SQLModel, table=True):
+    user_id: UUID = Field(primary_key=True, foreign_key="user.id")
+    tastes: str = Field(default="")  # 예: "매운거 좋아함, 오이 싫어함"
+
+    # 생성/수정 시간 추적
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    # 주의: 실제 업데이트 시 updated_at을 수동으로 갱신하거나 SQLAlchemy 이벤트를 써야 함
+
+
+# 2. 식사 기록 (1:N 관계 - User당 여러 개)
+# 성격: 로그 (Log / History)
+class MealLog(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: UUID = Field(foreign_key="user.id")
+    menu_name: str  # 예: "짜장면"
+
+    # 언제 먹었는지 (생성일시)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
