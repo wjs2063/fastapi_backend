@@ -1,16 +1,19 @@
 import uuid
 from typing import Any, List
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import col, delete, func, select
+from sqlmodel import col, delete, func, select, Session
+from pydantic import BaseModel
 
 from app import crud
 from app.api.deps import (
     CurrentUser,
     SessionDep,
     get_current_active_superuser,
+    get_db,
+    get_current_user
 )
-from datetime import datetime
 from app.core.config import settings
 from app.core.security import get_password_hash, verify_password
 from app.models import (
@@ -24,13 +27,13 @@ from app.models import (
     UsersPublic,
     UserUpdate,
     UserUpdateMe,
+    UserPreference,
+    MealLog,
+    MealLogPublic,
+    MealLogCreate,
+    MealLogUpdate
 )
 from app.utils import generate_new_account_email, send_email
-from fastapi import APIRouter, Depends
-from sqlmodel import Session, select
-from app.api.deps import get_db, get_current_user
-from app.models import User, UserPreference, MealLog
-from pydantic import BaseModel
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -41,16 +44,10 @@ router = APIRouter(prefix="/users", tags=["users"])
     response_model=UsersPublic,
 )
 def read_users(session: SessionDep, skip: int = 0, limit: int = 100) -> Any:
-    """
-    Retrieve users.
-    """
-
     count_statement = select(func.count()).select_from(User)
     count = session.exec(count_statement).one()
-
     statement = select(User).offset(skip).limit(limit)
     users = session.exec(statement).all()
-
     return UsersPublic(data=users, count=count)
 
 
@@ -58,16 +55,12 @@ def read_users(session: SessionDep, skip: int = 0, limit: int = 100) -> Any:
     "/", dependencies=[Depends(get_current_active_superuser)], response_model=UserPublic
 )
 def create_user(*, session: SessionDep, user_in: UserCreate) -> Any:
-    """
-    Create new user.
-    """
     user = crud.get_user_by_email(session=session, email=user_in.email)
     if user:
         raise HTTPException(
             status_code=400,
             detail="The user with this email already exists in the system.",
         )
-
     user = crud.create_user(session=session, user_create=user_in)
     if settings.emails_enabled and user_in.email:
         email_data = generate_new_account_email(
@@ -85,10 +78,6 @@ def create_user(*, session: SessionDep, user_in: UserCreate) -> Any:
 def update_user_me(
         *, session: SessionDep, user_in: UserUpdateMe, current_user: CurrentUser
 ) -> Any:
-    """
-    Update own user.
-    """
-
     if user_in.email:
         existing_user = crud.get_user_by_email(session=session, email=user_in.email)
         if existing_user and existing_user.id != current_user.id:
@@ -107,9 +96,6 @@ def update_user_me(
 def update_password_me(
         *, session: SessionDep, body: UpdatePassword, current_user: CurrentUser
 ) -> Any:
-    """
-    Update own password.
-    """
     if not verify_password(body.current_password, current_user.hashed_password):
         raise HTTPException(status_code=400, detail="Incorrect password")
     if body.current_password == body.new_password:
@@ -125,17 +111,11 @@ def update_password_me(
 
 @router.get("/me", response_model=UserPublic)
 def read_user_me(current_user: CurrentUser) -> Any:
-    """
-    Get current user.
-    """
     return current_user
 
 
 @router.delete("/me", response_model=Message)
 def delete_user_me(session: SessionDep, current_user: CurrentUser) -> Any:
-    """
-    Delete own user.
-    """
     if current_user.is_superuser:
         raise HTTPException(
             status_code=403, detail="Super users are not allowed to delete themselves"
@@ -147,9 +127,6 @@ def delete_user_me(session: SessionDep, current_user: CurrentUser) -> Any:
 
 @router.post("/signup", response_model=UserPublic)
 def register_user(session: SessionDep, user_in: UserRegister) -> Any:
-    """
-    Create new user without the need to be logged in.
-    """
     user = crud.get_user_by_email(session=session, email=user_in.email)
     if user:
         raise HTTPException(
@@ -165,9 +142,6 @@ def register_user(session: SessionDep, user_in: UserRegister) -> Any:
 def read_user_by_id(
         user_id: uuid.UUID, session: SessionDep, current_user: CurrentUser
 ) -> Any:
-    """
-    Get a specific user by id.
-    """
     user = session.get(User, user_id)
     if user == current_user:
         return user
@@ -190,10 +164,6 @@ def update_user(
         user_id: uuid.UUID,
         user_in: UserUpdate,
 ) -> Any:
-    """
-    Update a user.
-    """
-
     db_user = session.get(User, user_id)
     if not db_user:
         raise HTTPException(
@@ -206,7 +176,6 @@ def update_user(
             raise HTTPException(
                 status_code=409, detail="User with this email already exists"
             )
-
     db_user = crud.update_user(session=session, db_user=db_user, user_in=user_in)
     return db_user
 
@@ -215,9 +184,6 @@ def update_user(
 def delete_user(
         session: SessionDep, current_user: CurrentUser, user_id: uuid.UUID
 ) -> Message:
-    """
-    Delete a user.
-    """
     user = session.get(User, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -226,19 +192,16 @@ def delete_user(
             status_code=403, detail="Super users are not allowed to delete themselves"
         )
     statement = delete(Item).where(col(Item.owner_id) == user_id)
-    session.exec(statement)  # type: ignore
+    session.exec(statement)
     session.delete(user)
     session.commit()
     return Message(message="User deleted successfully")
 
 
-# 요청 스키마
+# --- [Menu Agent 관련 기능] ---
+
 class PreferenceUpdate(BaseModel):
     tastes: str
-
-
-class MealCreate(BaseModel):
-    menu_name: str
 
 
 @router.get("/me/preferences", response_model=UserPreference)
@@ -246,65 +209,57 @@ def read_user_preferences(
         session: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
 ) -> Any:
-    """
-    내 취향 정보를 조회합니다.
-    정보가 없으면 기본값(빈 문자열)을 반환합니다.
-    """
     pref = session.get(UserPreference, current_user.id)
-
     if not pref:
-        # 데이터가 없으면 404 대신, 빈 객체를 만들어서 반환 (프론트엔드 오류 방지)
         return UserPreference(user_id=current_user.id, tastes="")
-
     return pref
 
 
-# 1. 취향 업데이트 (UPSERT)
 @router.put("/me/preferences")
 def update_preferences(
         data: PreferenceUpdate,
         session: Session = Depends(get_db),
         current_user: User = Depends(get_current_user)
 ):
-    # 기존 데이터 확인
     pref = session.get(UserPreference, current_user.id)
     if not pref:
-        # 없으면 생성
         pref = UserPreference(user_id=current_user.id, tastes=data.tastes)
         session.add(pref)
     else:
-        # 있으면 수정
         pref.tastes = data.tastes
-        pref.updated_at = datetime.now()  # 수정 시간 갱신
+        pref.updated_at = datetime.now()
         session.add(pref)
-
     session.commit()
+    session.refresh(pref)
     return pref
 
 
-# 2. 식사 기록 추가 (INSERT)
-@router.post("/me/meals")
+# [수정] 3. 식사 기록 추가 (INSERT) - created_at 처리
+@router.post("/me/meals", response_model=MealLogPublic)
 def add_meal_log(
-        data: MealCreate,
+        data: MealLogCreate,
         session: Session = Depends(get_db),
         current_user: User = Depends(get_current_user)
 ):
-    meal = MealLog(user_id=current_user.id, menu_name=data.menu_name)
+    # 만약 created_at이 없으면 현재 시간으로 설정 (모델 기본값 동작하겠지만 명시적 처리)
+    update_data = {"user_id": current_user.id}
+    if not data.created_at:
+        update_data["created_at"] = datetime.now()
+
+    meal = MealLog.model_validate(data, update=update_data)
     session.add(meal)
     session.commit()
-    return {"message": "Meal logged"}
+    session.refresh(meal)
+    return meal
 
 
-@router.get("/me/meals", response_model=List[MealLog])
+@router.get("/me/meals", response_model=List[MealLogPublic])
 def read_my_meals(
         session: SessionDep,
         current_user: CurrentUser,
         skip: int = 0,
-        limit: int = 50,  # 기본 50개 조회
+        limit: int = 100,
 ) -> Any:
-    """
-    Retrieve current user's meal history.
-    """
     statement = (
         select(MealLog)
         .where(MealLog.user_id == current_user.id)
@@ -316,16 +271,36 @@ def read_my_meals(
     return meals
 
 
-# [추가] 4. 식사 기록 삭제 (DELETE) - 실수로 입력한 경우
+# [수정] 5. 식사 기록 수정 (UPDATE) - created_at 수정 가능
+@router.put("/me/meals/{meal_id}", response_model=MealLogPublic)
+def update_my_meal(
+        meal_id: int,
+        data: MealLogUpdate,
+        session: SessionDep,
+        current_user: CurrentUser
+) -> Any:
+    meal = session.get(MealLog, meal_id)
+    if not meal:
+        raise HTTPException(status_code=404, detail="Meal not found")
+    if meal.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    meal_data = data.model_dump(exclude_unset=True)
+    meal.sqlmodel_update(meal_data)
+
+    meal.updated_at = datetime.now()
+    session.add(meal)
+    session.commit()
+    session.refresh(meal)
+    return meal
+
+
 @router.delete("/me/meals/{meal_id}")
 def delete_my_meal(
         meal_id: int,
         session: SessionDep,
         current_user: CurrentUser,
 ) -> Any:
-    """
-    Delete a meal log.
-    """
     meal = session.get(MealLog, meal_id)
     if not meal:
         raise HTTPException(status_code=404, detail="Meal log not found")

@@ -76,7 +76,7 @@ async def websocket_endpoint(
             # 예: response = await agent_executor.ainvoke({"input": data, "user_id": user.id})
 
             try:
-                print("사용자 질문 : ",data)
+                print("사용자 질문 : ",data,type(data))
                 response = await agent_executor.ainvoke(data)
                 print("Agent 응답 : ",response)
                 await websocket.send_text(response.content)
