@@ -1,47 +1,37 @@
 import uuid
 from typing import Any
-
 from fastapi import APIRouter, HTTPException
 from sqlmodel import func, select
 from sqlalchemy.orm import joinedload
 from app.api.deps import CurrentUser, SessionDep
 from app.models import Item, ItemCreate, ItemPublic, ItemsPublic, ItemUpdate, Message
 from datetime import datetime
+
 router = APIRouter(prefix="/items", tags=["items"])
 
 
 @router.get("/", response_model=ItemsPublic)
 def read_items(
-    session: SessionDep, current_user: CurrentUser, skip: int = 0, limit: int = 100
+        session: SessionDep, current_user: CurrentUser, skip: int = 0, limit: int = 100
 ) -> Any:
-    """
-    Retrieve all items (Visible to all logged-in users).
-    """
-    # 1. 전체 게시글 수 카운트 (주인 여부 상관없이 전체)
     count_statement = select(func.count()).select_from(Item)
     count = session.exec(count_statement).one()
 
-    # 2. 전체 게시글 조회
-    # - where 조건을 제거하여 모든 글을 가져옵니다.
-    # - joinedload(Item.owner)는 유지하여 작성자 이름을 표시합니다.
     statement = (
         select(Item)
         .options(joinedload(Item.owner))
         .offset(skip)
         .limit(limit)
-        .order_by(Item.created_at.desc()) # (선택사항) 최신글 순으로 정렬하려면 추가
+        .order_by(Item.created_at.desc())
     )
     items = session.exec(statement).all()
-
     return ItemsPublic(data=items, count=count)
+
 
 @router.post("/", response_model=ItemPublic)
 def create_item(
-    *, session: SessionDep, current_user: CurrentUser, item_in: ItemCreate
+        *, session: SessionDep, current_user: CurrentUser, item_in: ItemCreate
 ) -> Any:
-    """
-    Create new item.
-    """
     item = Item.model_validate(item_in, update={"owner_id": current_user.id})
     session.add(item)
     session.commit()
@@ -51,20 +41,20 @@ def create_item(
 
 @router.put("/{id}", response_model=ItemPublic)
 def update_item(
-    *,
-    session: SessionDep,
-    current_user: CurrentUser,
-    id: uuid.UUID,
-    item_in: ItemUpdate,
+        *,
+        session: SessionDep,
+        current_user: CurrentUser,
+        id: uuid.UUID,
+        item_in: ItemUpdate,
 ) -> Any:
-    """
-    Update an item.
-    """
     item = session.get(Item, id)
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
+
+    # [수정] 권한 체크: 관리자가 아니고 소유자도 아니면 403 에러
     if not current_user.is_superuser and (item.owner_id != current_user.id):
-        raise HTTPException(status_code=400, detail="Not enough permissions")
+        raise HTTPException(status_code=403, detail="본인의 글만 수정할 수 있습니다.")
+
     update_dict = item_in.model_dump(exclude_unset=True)
     item.sqlmodel_update(update_dict)
     item.updated_at = datetime.now()
@@ -76,31 +66,25 @@ def update_item(
 
 @router.delete("/{id}")
 def delete_item(
-    session: SessionDep, current_user: CurrentUser, id: uuid.UUID
+        session: SessionDep, current_user: CurrentUser, id: uuid.UUID
 ) -> Message:
-    """
-    Delete an item.
-    """
     item = session.get(Item, id)
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
+
+    # [수정] 권한 체크: 관리자가 아니고 소유자도 아니면 403 에러
     if not current_user.is_superuser and (item.owner_id != current_user.id):
-        raise HTTPException(status_code=400, detail="Not enough permissions")
+        raise HTTPException(status_code=403, detail="본인의 글만 삭제할 수 있습니다.")
+
     session.delete(item)
     session.commit()
     return Message(message="Item deleted successfully")
 
 
-# ... (기존 read_items 함수 아래에 추가)
-
 @router.get("/mine", response_model=ItemsPublic)
 def read_my_items(
-    session: SessionDep, current_user: CurrentUser, skip: int = 0, limit: int = 100
+        session: SessionDep, current_user: CurrentUser, skip: int = 0, limit: int = 100
 ) -> Any:
-    """
-    Retrieve only items created by the current user.
-    """
-    # 1. 내 글 개수 카운트
     count_statement = (
         select(func.count())
         .select_from(Item)
@@ -108,7 +92,6 @@ def read_my_items(
     )
     count = session.exec(count_statement).one()
 
-    # 2. 내 글 조회 (작성자 정보 포함)
     statement = (
         select(Item)
         .where(Item.owner_id == current_user.id)
@@ -118,5 +101,4 @@ def read_my_items(
         .order_by(Item.created_at.desc())
     )
     items = session.exec(statement).all()
-
     return ItemsPublic(data=items, count=count)
