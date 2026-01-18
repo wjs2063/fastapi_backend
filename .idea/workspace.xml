@@ -5,19 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f37d08e1-3c0c-4fb3-b371-6107a73e6e91" name="변경" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/ai_toolkit.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/alembic/versions/13f1f61c37b3_add_timestamps_to_user_and_item.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/alembic/versions/4a76c983592d_update_meallog.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/alembic/versions/5cfca3ee1ff9_feat_recreate_db_table.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/alembic/versions/6062cb874a3d_fix_utcnow_now.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/alembic/versions/b495e1292b81_recreate_meallog_with_english_enum.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/alembic/versions/bf45a2f8d82b_먹은_음식_추가할때_날짜_선택필드_추가.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/alembic/versions/c84efe9d21e3_initial_migration.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/alembic/versions/d5a9edfd2d36_update_meallog.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/alembic/versions/f25649335a24_add_userpreference_and_meallog_models.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/api/routes/chat.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/routes/chat.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/prestart.sh" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/prestart.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../frontend/frontend" beforeDir="false" afterPath="$PROJECT_DIR$/../frontend/frontend" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -183,7 +171,7 @@
       <workItem from="1768641342958" duration="1333000" />
       <workItem from="1768646817473" duration="1940000" />
       <workItem from="1768724524184" duration="9127000" />
-      <workItem from="1768737824405" duration="1990000" />
+      <workItem from="1768737824405" duration="2067000" />
     </task>
     <servers />
   </component>
