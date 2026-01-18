@@ -2,14 +2,15 @@ from typing import Annotated
 import jwt
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, Depends, status
 from pydantic import ValidationError
+from requests import session
 
 from app.core import security
 from app.core.config import settings
 from app.api.deps import SessionDep, TokenDep  # 템플릿의 의존성 활용
+from app.infra.repository.rdb import RDBRepository
 from app.models import TokenPayload, User
 from langchain_openai import ChatOpenAI
 import logging
-
 
 agent_executor = ChatOpenAI(model="gpt-4o")
 logger = logging.getLogger(__name__)
@@ -47,7 +48,9 @@ async def websocket_endpoint(
         websocket: WebSocket,
         # WebSocket 연결 시 Query Parameter로 token을 받습니다.
         # 예: ws://localhost:8000/api/v1/chat/ws?token=eyJhbG...
-        user: Annotated[User | None, Depends(get_current_user_ws)]
+        session: SessionDep,
+        user: Annotated[User | None, Depends(get_current_user_ws)],
+
 ):
     # 1. 인증 실패 시 즉시 연결 종료 (Policy Violation)
     if user is None:
@@ -68,6 +71,11 @@ async def websocket_endpoint(
     # 연결된 유저 로깅 (선택)
     logger.info(f"User connected: {user.email}")
 
+    initial_state = {
+        "user_id": user.id,
+    }
+    print(initial_state)
+    print(RDBRepository(session=session).get_user_preferences_by_user_id(user_id=user.id))
     try:
         while True:
             data = await websocket.receive_text()
@@ -76,9 +84,9 @@ async def websocket_endpoint(
             # 예: response = await agent_executor.ainvoke({"input": data, "user_id": user.id})
 
             try:
-                print("사용자 질문 : ",data,type(data))
+                print("사용자 질문 : ", data, type(data))
                 response = await agent_executor.ainvoke(data)
-                print("Agent 응답 : ",response)
+                print("Agent 응답 : ", response)
                 await websocket.send_text(response.content)
             except Exception as e:
                 logger.error(f"Agent Execution Error: {e}")
