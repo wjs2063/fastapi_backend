@@ -1,6 +1,8 @@
+from datetime import datetime
 from typing import Annotated
 import jwt
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, Depends, status
+from langchain_core.runnables import RunnableConfig
 from pydantic import ValidationError
 from requests import session
 
@@ -9,6 +11,8 @@ from app.core.config import settings
 from app.api.deps import SessionDep, TokenDep  # 템플릿의 의존성 활용
 from app.infra.repository.rdb import RDBRepository
 from app.models import TokenPayload, User
+from app.agent.menu_recommend.agent import graph
+from app.agent.menu_recommend.state import init_agent_state
 from langchain_openai import ChatOpenAI
 import logging
 
@@ -71,11 +75,16 @@ async def websocket_endpoint(
     # 연결된 유저 로깅 (선택)
     logger.info(f"User connected: {user.email}")
 
-    initial_state = {
-        "user_id": user.id,
-    }
-    print(initial_state)
-    print(RDBRepository(session=session).get_user_preferences_by_user_id(user_id=user.id))
+    initial_state = init_agent_state(user, message="안녕")
+    config = RunnableConfig(
+        run_name="test",
+        configurable={
+            "rdb_session": session,
+        }
+    )
+
+    print("그래프 결과", await graph.ainvoke(initial_state, config=config))
+
     try:
         while True:
             data = await websocket.receive_text()
@@ -85,7 +94,7 @@ async def websocket_endpoint(
 
             try:
                 print("사용자 질문 : ", data, type(data))
-                response = await agent_executor.ainvoke(data)
+                response = await agent_executor.ainvoke(data, config=config)
                 print("Agent 응답 : ", response)
                 await websocket.send_text(response.content)
             except Exception as e:
