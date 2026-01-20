@@ -103,3 +103,17 @@ async def websocket_endpoint(
 
     except WebSocketDisconnect:
         logger.info(f"Client disconnected: {user.email}")
+
+
+@router.get("/test")
+async def conversation_handler(session: SessionDep,
+                               user: Annotated[User | None, Depends(get_current_user_ws)], ):
+    initial_state = init_agent_state(user, message="안녕")
+    config = RunnableConfig(
+        run_name="test",
+        configurable={
+            "rdb_session": session,
+        }
+    )
+
+    print("그래프 결과", await graph.ainvoke(initial_state, config=config))
