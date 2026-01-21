@@ -60,6 +60,7 @@ dependencies = [
     { name = "langchain" },
     { name = "langchain-openai" },
     { name = "langgraph" },
+    { name = "langgraph-checkpoint-postgres" },
     { name = "passlib", extra = ["bcrypt"] },
     { name = "psycopg", extra = ["binary"] },
     { name = "pydantic" },
@@ -93,6 +94,7 @@ requires-dist = [
     { name = "langchain", specifier = ">=1.2.0" },
     { name = "langchain-openai", specifier = ">=1.1.5" },
     { name = "langgraph", specifier = ">=1.0.5" },
+    { name = "langgraph-checkpoint-postgres", specifier = ">=3.0.3" },
     { name = "passlib", extras = ["bcrypt"], specifier = ">=1.7.4,<2.0.0" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.1.13,<4.0.0" },
     { name = "pydantic", specifier = ">2.0" },
@@ -832,6 +834,21 @@ wheels = [
 ]
 
 [[package]]
+name = "langgraph-checkpoint-postgres"
+version = "3.0.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "langgraph-checkpoint" },
+    { name = "orjson" },
+    { name = "psycopg" },
+    { name = "psycopg-pool" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/36/86/5f3c01346be4b7f455aeeff915f78c878fe9eee5cc8b3782df0886b409bf/langgraph_checkpoint_postgres-3.0.3.tar.gz", hash = "sha256:f77852340198b9e71f2d52da5b591cfc55a4a2e537001868a83b9ab1865f9146", size = 127198, upload-time = "2026-01-12T20:36:40.205Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/84/f8/5a6f9dbc3a93e3b9a567ba0a8b6df5e89882be64dc1c6586a33ec15e93b8/langgraph_checkpoint_postgres-3.0.3-py3-none-any.whl", hash = "sha256:f603f4f81961e2740bd70679affeb540452d467990d4692132c07c20870bdbb1", size = 42715, upload-time = "2026-01-12T20:36:38.636Z" },
+]
+
+[[package]]
 name = "langgraph-prebuilt"
 version = "1.0.5"
 source = { registry = "https://pypi.org/simple" }
@@ -1380,6 +1397,18 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/8b/76/c77643d97292673d8a5e3eea643812d585993155658f840c86bfa855e077/psycopg_binary-3.2.2-cp313-cp313-musllinux_1_2_ppc64le.whl", hash = "sha256:705da5bc4364bd7529473225fca02b795653bc5bd824dbe43e1df0b1a40fe691", size = 3189435, upload-time = "2024-09-15T21:05:49.625Z" },
     { url = "https://files.pythonhosted.org/packages/30/31/b4ea793bdf44acca51e3fa6f68cc80d03725e8ef87fc2ee2b332c49fa521/psycopg_binary-3.2.2-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:05406b96139912574571b1c56bb023839a9146cf4b57c4548f36251dd5909fa1", size = 3233951, upload-time = "2024-09-15T21:06:06.577Z" },
     { url = "https://files.pythonhosted.org/packages/49/e3/633d6d05e40651acb30458e296c90e878fa4caf3b3c21bb9e6adc912b811/psycopg_binary-3.2.2-cp313-cp313-win_amd64.whl", hash = "sha256:7c357cf87e8d7612cfe781225be7669f35038a765d1b53ec9605f6c5aef9ee85", size = 2913412, upload-time = "2024-09-15T21:06:21.959Z" },
+]
+
+[[package]]
+name = "psycopg-pool"
+version = "3.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/56/9a/9470d013d0d50af0da9c4251614aeb3c1823635cab3edc211e3839db0bcf/psycopg_pool-3.3.0.tar.gz", hash = "sha256:fa115eb2860bd88fce1717d75611f41490dec6135efb619611142b24da3f6db5", size = 31606, upload-time = "2025-12-01T11:34:33.11Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e7/c3/26b8a0908a9db249de3b4169692e1c7c19048a9bc41a4d3209cee7dbb758/psycopg_pool-3.3.0-py3-none-any.whl", hash = "sha256:2e44329155c410b5e8666372db44276a8b1ebd8c90f1c3026ebba40d4bc81063", size = 39995, upload-time = "2025-12-01T11:34:29.761Z" },
 ]
 
 [[package]]
