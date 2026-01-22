@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Annotated
 import jwt
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, Depends, status
+from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 from pydantic import ValidationError
 from requests import session
@@ -15,6 +16,7 @@ from app.agent.menu_recommend.agent import graph
 from app.agent.menu_recommend.state import init_agent_state
 from langchain_openai import ChatOpenAI
 import logging
+import json
 
 agent_executor = ChatOpenAI(model="gpt-4o")
 logger = logging.getLogger(__name__)
@@ -75,15 +77,13 @@ async def websocket_endpoint(
     # 연결된 유저 로깅 (선택)
     logger.info(f"User connected: {user.email}")
 
-    initial_state = init_agent_state(user, message="안녕")
-    config = RunnableConfig(
-        run_name="test",
-        configurable={
-            "rdb_session": session,
-        }
-    )
-
-    print("그래프 결과", await graph.ainvoke(initial_state, config=config))
+    # initial_state = init_agent_state(user, message="안녕")
+    # config = RunnableConfig(
+    #     run_name="test",
+    #     configurable={
+    #         "rdb_session": session,
+    #     }
+    # )
 
     try:
         while True:
@@ -94,9 +94,12 @@ async def websocket_endpoint(
 
             try:
                 print("사용자 질문 : ", data, type(data))
-                response = await agent_executor.ainvoke(data, config=config)
-                print("Agent 응답 : ", response)
-                await websocket.send_text(response.content)
+
+                response = await graph.ainvoke(
+                    {"user_id": str(user.id), "messages": [HumanMessage(content=json.loads(data)["text"])]})
+                print(response)
+                print("Agent 응답 : ", response["messages"][-1].content)
+                await websocket.send_text(response["messages"][-1].content)
             except Exception as e:
                 logger.error(f"Agent Execution Error: {e}")
                 await websocket.send_text(f"Error: {str(e)}")

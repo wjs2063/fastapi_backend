@@ -8,3 +8,4 @@ htmlcov
 .venv
 .env
 infra/postgres_data/*
+infra/neo4j/neo4j/
