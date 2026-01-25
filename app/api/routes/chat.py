@@ -8,7 +8,7 @@ from langchain_core.runnables import RunnableConfig
 from pydantic import ValidationError
 from requests import session
 
-from app.agent.menu_recommend.neo4j_db import Neo4jService
+from app.agent.menu_recommend.neo4j_db import Neo4jService, Neo4jManager
 from app.clients.naver import naver_search_client
 from app.clients.naver import find_my_office
 from app.core import security
@@ -58,7 +58,7 @@ def return_update_state(msg: str, state: dict) -> dict:
     user_msg = json.loads(msg)
 
     query = user_msg["text"]
-    if user_msg.get("location",{}):
+    if user_msg.get("location", {}):
         lat = user_msg["location"]["lat"]
         lng = user_msg["location"]["lng"]
         state["user_info"] = UserInfo(lat=lat, lng=lng)
@@ -107,6 +107,8 @@ async def websocket_endpoint(
         "user_info": UserInfo()
     }
 
+    config = RunnableConfig(configurable={"neo4j_service": Neo4jManager.get_service()})
+
     try:
         while True:
             data = await websocket.receive_text()
@@ -120,7 +122,7 @@ async def websocket_endpoint(
                 state = return_update_state(msg=data, state=state)
 
                 response = await graph.ainvoke(
-                    state)
+                    state,config=config)
                 print("Agent 응답 : ", response["messages"][-1].content)
                 await websocket.send_text(response["messages"][-1].content)
             except Exception as e:

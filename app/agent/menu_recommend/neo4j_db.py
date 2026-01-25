@@ -2,7 +2,7 @@ import logging
 from typing import List, Optional
 from neo4j import AsyncGraphDatabase
 from pydantic import BaseModel
-
+import os
 
 
 class Neo4jService:
@@ -60,3 +60,32 @@ class Neo4jService:
                 await session.run(query)
             except Exception as e:
                 raise
+
+
+
+class Neo4jManager:
+    _service: Neo4jService = None
+
+    @classmethod
+    async def init(cls):
+        """앱 시작 시 단 한 번 호출하여 서비스 인스턴스 생성"""
+        if cls._service is None:
+            cls._service = Neo4jService(
+                uri=os.getenv("NEO4J_URI"),
+                user=os.getenv("NEO4J_USER"),
+                password=os.getenv("NEO4J_PASSWORD")
+            )
+
+    @classmethod
+    def get_service(cls) -> Neo4jService:
+        """노드나 API에서 서비스 인스턴스에 접근할 때 사용"""
+        if cls._service is None:
+            raise RuntimeError("Neo4jService가 초기화되지 않았습니다. Lifespan을 확인하세요.")
+        return cls._service
+
+    @classmethod
+    async def close(cls):
+        """앱 종료 시 드라이버 연결을 안전하게 닫음"""
+        if cls._service:
+            await cls._service.close()
+            cls._service = None

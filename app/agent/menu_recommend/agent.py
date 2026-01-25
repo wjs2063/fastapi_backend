@@ -1,3 +1,4 @@
+from langchain_core.runnables import Runnable, RunnableConfig
 from pydantic import BaseModel, Field
 from yaml import serialize
 
@@ -64,7 +65,7 @@ class RelevanceCheck(BaseModel):
     reason: str = Field(description="이유를 한글로 설명 (예: '음식과 관련 없는 일상 대화입니다')")
 
 
-async def guardrail(state: AgentState):
+async def guardrail(state: AgentState,config : RunnableConfig):
     """사용자의 마지막 질문 하나만 추출하여 관련성을 엄격히 판별합니다."""
 
     # 1. 메시지 리스트에서 마지막 HumanMessage 객체만 안전하게 추출
@@ -113,7 +114,7 @@ async def guardrail(state: AgentState):
 
 
 # 2. 조건부 엣지 함수
-def route_after_guardrail(state: AgentState):
+def route_after_guardrail(state: AgentState,config : RunnableConfig):
     """
     is_related가 False면 바로 종료(END) 시그널을 보냅니다.
     """
@@ -123,7 +124,7 @@ def route_after_guardrail(state: AgentState):
     return "continue"
 
 
-async def resolve_location(state: AgentState):
+async def resolve_location(state: AgentState,config : RunnableConfig):
     """좌표가 있다면 주소로 변환하여 state에 저장"""
     lat = state["user_info"].lat
     lng = state["user_info"].lng
@@ -136,8 +137,8 @@ async def resolve_location(state: AgentState):
 
 
 # --- 노드 구현 ---
-async def load_memories(state: AgentState):
-    db = Neo4jService(os.getenv("NEO4J_URI"), os.getenv("NEO4J_USER"), os.getenv("NEO4J_PASSWORD"))
+async def load_memories(state: AgentState,config : RunnableConfig):
+    db = config["configurable"].get("neo4j_service")
     prefs = await db.get_user_context(state["user_id"])
 
     formatted = "\n".join([
@@ -148,7 +149,7 @@ async def load_memories(state: AgentState):
     return {"context": formatted, "search_params": {"start": 1, "display": 5, "retry_count": 0}}
 
 
-async def call_agent(state: AgentState):
+async def call_agent(state: AgentState,config : RunnableConfig):
     # 기존 툴 그대로 사용
     llm = ChatOpenAI(model="gpt-4o", temperature=0).bind_tools([NaverLocalSearchTool()])
 
@@ -170,7 +171,7 @@ async def call_agent(state: AgentState):
     return {"messages": [response]}
 
 
-def should_continue(state: AgentState):
+def should_continue(state: AgentState,config : RunnableConfig):
     """검색 결과 유무에 따른 루프 결정"""
     last_msg = state["messages"][-1]
 
@@ -185,7 +186,7 @@ def should_continue(state: AgentState):
     return tools_condition(state)
 
 
-async def adjust_params(state: AgentState):
+async def adjust_params(state: AgentState,config : RunnableConfig):
     curr = state["search_params"]
     return {
         "search_params": {
@@ -196,9 +197,9 @@ async def adjust_params(state: AgentState):
     }
 
 
-async def sync_db(state: AgentState):
+async def sync_db(state: AgentState,config : RunnableConfig):
     """사용자의 마지막 메시지에서만 취향을 추출하여 Neo4j에 저장"""
-
+    db = config["configurable"].get("neo4j_service")
     # 1. 메시지 기록 중 사용자가 보낸 것만 필터링
     user_messages = [m for m in state["messages"] if isinstance(m, HumanMessage)]
 
@@ -220,11 +221,6 @@ async def sync_db(state: AgentState):
 
     # 4. DB 저장
     if extracted and extracted.preferences:
-        db = Neo4jService(
-            os.getenv("NEO4J_URI"),
-            os.getenv("NEO4J_USER"),
-            os.getenv("NEO4J_PASSWORD")
-        )
 
         for p in extracted.preferences:
             await db.upsert_hierarchical_preference(

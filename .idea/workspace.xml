@@ -9,9 +9,7 @@
       <change beforePath="$PROJECT_DIR$/app/agent/menu_recommend/agent.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/agent/menu_recommend/agent.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/agent/menu_recommend/neo4j_db.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/agent/menu_recommend/neo4j_db.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/api/routes/chat.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/routes/chat.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/core/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/core/config.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pyproject.toml" beforeDir="false" afterPath="$PROJECT_DIR$/pyproject.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/uv.lock" beforeDir="false" afterPath="$PROJECT_DIR$/uv.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/main.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../frontend/frontend" beforeDir="false" afterPath="$PROJECT_DIR$/../frontend/frontend" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -235,7 +233,7 @@
       <workItem from="1769225124661" duration="119000" />
       <workItem from="1769225270156" duration="9772000" />
       <workItem from="1769236074667" duration="1206000" />
-      <workItem from="1769237286281" duration="12816000" />
+      <workItem from="1769237286281" duration="16666000" />
     </task>
     <servers />
   </component>
