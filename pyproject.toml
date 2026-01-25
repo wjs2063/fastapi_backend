@@ -25,7 +25,9 @@ dependencies = [
     "langgraph>=1.0.5",
     "langchain-openai>=1.1.5",
     "langgraph-checkpoint-postgres>=3.0.3",
-    "neo4j>=6.1.0",
+    "neo4j>=6.0",
+    "aiohttp>=3.13.3",
+    "certifi>=2024.8.30",
 ]
 
 [tool.uv]

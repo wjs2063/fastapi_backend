@@ -3,10 +3,14 @@ from typing import Annotated
 import jwt
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, Depends, status
 from langchain_core.messages import HumanMessage
+from langchain_core.prompts import message
 from langchain_core.runnables import RunnableConfig
 from pydantic import ValidationError
 from requests import session
 
+from app.agent.menu_recommend.neo4j_db import Neo4jService
+from app.clients.naver import naver_search_client
+from app.clients.naver import find_my_office
 from app.core import security
 from app.core.config import settings
 from app.api.deps import SessionDep, TokenDep  # 템플릿의 의존성 활용
@@ -14,6 +18,7 @@ from app.infra.repository.rdb import RDBRepository
 from app.models import TokenPayload, User
 from app.agent.menu_recommend.agent import graph
 from app.agent.menu_recommend.state import init_agent_state
+from app.agent.menu_recommend.agent import UserInfo
 from langchain_openai import ChatOpenAI
 import logging
 import json
@@ -47,6 +52,18 @@ def get_current_user_ws(
     if not user or not user.is_active:
         return None
     return user
+
+
+def return_update_state(msg: str, state: dict) -> dict:
+    user_msg = json.loads(msg)
+
+    query = user_msg["text"]
+    if user_msg.get("location",{}):
+        lat = user_msg["location"]["lat"]
+        lng = user_msg["location"]["lng"]
+        state["user_info"] = UserInfo(lat=lat, lng=lng)
+    state["messages"] = [HumanMessage(content=query)]
+    return state
 
 
 @router.websocket("/menu-recommend/ws")
@@ -85,6 +102,11 @@ async def websocket_endpoint(
     #     }
     # )
 
+    state = {
+        "user_id": str(user.id),
+        "user_info": UserInfo()
+    }
+
     try:
         while True:
             data = await websocket.receive_text()
@@ -95,9 +117,10 @@ async def websocket_endpoint(
             try:
                 print("사용자 질문 : ", data, type(data))
 
+                state = return_update_state(msg=data, state=state)
+
                 response = await graph.ainvoke(
-                    {"user_id": str(user.id), "messages": [HumanMessage(content=json.loads(data)["text"])]})
-                print(response)
+                    state)
                 print("Agent 응답 : ", response["messages"][-1].content)
                 await websocket.send_text(response["messages"][-1].content)
             except Exception as e:
@@ -120,3 +143,39 @@ async def conversation_handler(session: SessionDep,
     )
 
     print("그래프 결과", await graph.ainvoke(initial_state, config=config))
+
+
+@router.get("/naver-map")
+async def naver_map_handler():
+    return await find_my_office()
+
+
+@router.get("/naver-local-search")
+async def naver_local_search_handler(query: str):
+    response = await naver_search_client.search_local(query=query, display=10)
+
+    return response
+
+
+@router.get("/menu-chat")
+async def menu_chat(
+        query: str = Query(...),
+
+):
+    response = await graph.ainvoke({"user_id": "string", "messages": [HumanMessage(content=query)]})
+    print(response)
+    return response
+
+
+import os
+
+
+@router.get("/reset-db")
+async def reset_db_handler():
+    db = Neo4jService(
+        os.getenv("NEO4J_URI"),
+        os.getenv("NEO4J_USER"),
+        os.getenv("NEO4J_PASSWORD")
+    )
+    await db.reset_db()
+    return {"msg": "success"}

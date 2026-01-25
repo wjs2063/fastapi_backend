@@ -26,7 +26,7 @@ def parse_cors(v: Any) -> list[str] | str:
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         # Use top level .env file (one level above ./backend/)
-        env_file="../.env",
+        env_file=".env",
         env_ignore_empty=True,
         extra="ignore",
     )
@@ -114,6 +114,14 @@ class Settings(BaseSettings):
         )
 
         return self
+
+    NAVER_MAP_CLIENT_ID: str = ""
+    NAVER_MAP_CLIENT_SECRET: str = ""
+
+    NAVER_DEV_CLIENT_ID: str = ""
+    NAVER_DEV_CLIENT_SECRET: str = ""
+
+    SK_MAP_API_KEY: str = ""
 
 
 settings = Settings()  # type: ignore
