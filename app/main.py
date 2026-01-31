@@ -1,8 +1,13 @@
+import asyncio
+from contextlib import asynccontextmanager
+
 import sentry_sdk
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from langgraph.store.postgres import AsyncPostgresStore
 from starlette.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
+from core.db import connection_pool
 from app.agent.menu_recommend.neo4j_db import Neo4jManager
 from app.api.main import api_router
 from app.core.config import settings
@@ -20,9 +25,19 @@ if settings.SENTRY_DSN and settings.ENVIRONMENT != "local":
 async def lifespan(app: FastAPI):
     # [Startup] 서버 시작 시 드라이버 풀 생성
     await Neo4jManager.init()
+    async with connection_pool.connection() as conn:
+        saver = AsyncPostgresSaver(conn)
+        store = AsyncPostgresStore(conn)
+        await asyncio.gather(saver.setup(), store.setup())
+        print("LangGraph Storage Setup Completed.")
+
     yield
+    # 앱 종료 시 풀 닫기
+    await connection_pool.close()
     # [Shutdown] 서버 종료 시 드라이버 풀 해제
     await Neo4jManager.close()
+
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",

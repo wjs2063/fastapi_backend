@@ -5,11 +5,17 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f37d08e1-3c0c-4fb3-b371-6107a73e6e91" name="변경" comment="">
+      <change afterPath="$PROJECT_DIR$/.idea/codeStyles/codeStyleConfig.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/ruff.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/agent/menu_recommend/agent.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/agent/menu_recommend/agent.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/agent/menu_recommend/neo4j_db.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/agent/menu_recommend/neo4j_db.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/agent/menu_recommend/tools.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/agent/menu_recommend/tools.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/api/deps.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/deps.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/api/routes/chat.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/routes/chat.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/core/db.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/core/db.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/infra/neo4j/neo4j_compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/infra/neo4j/neo4j_compose.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pyproject.toml" beforeDir="false" afterPath="$PROJECT_DIR$/pyproject.toml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../frontend/frontend" beforeDir="false" afterPath="$PROJECT_DIR$/../frontend/frontend" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -43,6 +49,7 @@
     &quot;Python 테스트.app.clients.naver.test_run의 Python 테스트.executor&quot;: &quot;Run&quot;,
     &quot;Python.backend_pre_start.executor&quot;: &quot;Run&quot;,
     &quot;Python.checkpointer.executor&quot;: &quot;Run&quot;,
+    &quot;Python.db.executor&quot;: &quot;Run&quot;,
     &quot;Python.in_memory.executor&quot;: &quot;Run&quot;,
     &quot;Python.initial_data.executor&quot;: &quot;Run&quot;,
     &quot;Python.main.executor&quot;: &quot;Run&quot;,
@@ -61,7 +68,7 @@
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
     &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
     &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;com.koxudaxi.ruff.RuffConfigurable&quot;,
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
 }</component>
@@ -71,7 +78,7 @@
     </key>
   </component>
   <component name="RunManager" selected="Python.uvicorn">
-    <configuration name="in_memory" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="db" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="backend" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -80,12 +87,12 @@
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
       <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/langgraph_tutorial/memory" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/app/core" />
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/langgraph_tutorial/memory/in_memory.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/app/core/db.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -182,10 +189,10 @@
     <recent_temporary>
       <list>
         <item itemvalue="Python.uvicorn" />
+        <item itemvalue="Python.db" />
         <item itemvalue="Python.naver_search" />
         <item itemvalue="Python.naver" />
         <item itemvalue="Python 테스트.app.clients.naver.test_run의 Python 테스트" />
-        <item itemvalue="Python.in_memory" />
       </list>
     </recent_temporary>
   </component>
@@ -233,7 +240,13 @@
       <workItem from="1769225124661" duration="119000" />
       <workItem from="1769225270156" duration="9772000" />
       <workItem from="1769236074667" duration="1206000" />
-      <workItem from="1769237286281" duration="16666000" />
+      <workItem from="1769237286281" duration="19538000" />
+      <workItem from="1769506430116" duration="301000" />
+      <workItem from="1769688166674" duration="44000" />
+      <workItem from="1769688218609" duration="5834000" />
+      <workItem from="1769766742770" duration="239000" />
+      <workItem from="1769767440743" duration="942000" />
+      <workItem from="1769843937227" duration="14119000" />
     </task>
     <servers />
   </component>
@@ -245,8 +258,9 @@
     <SUITE FILE_PATH="coverage/backend$naver.coverage" NAME="naver 커버리지 결과" MODIFIED="1769224900014" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app/clients" />
     <SUITE FILE_PATH="coverage/backend$initial_data.coverage" NAME="initial_data 커버리지 결과" MODIFIED="1768729045835" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app" />
     <SUITE FILE_PATH="coverage/backend$main.coverage" NAME="uvicorn 커버리지 결과" MODIFIED="1765976334904" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app" />
-    <SUITE FILE_PATH="coverage/backend$uvicorn.coverage" NAME="uvicorn 커버리지 결과" MODIFIED="1769327459520" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app" />
+    <SUITE FILE_PATH="coverage/backend$uvicorn.coverage" NAME="uvicorn 커버리지 결과" MODIFIED="1769857818584" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app" />
     <SUITE FILE_PATH="coverage/backend$.coverage" NAME=" 커버리지 결과" MODIFIED="1769222597019" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/backend$db.coverage" NAME="db 커버리지 결과" MODIFIED="1769690630647" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app/core" />
     <SUITE FILE_PATH="coverage/backend$naver_search.coverage" NAME="naver_search 커버리지 결과" MODIFIED="1769225285390" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app/clients" />
     <SUITE FILE_PATH="coverage/backend$checkpointer.coverage" NAME="checkpointer 커버리지 결과" MODIFIED="1769003046719" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/langgraph_tutorial/checkpointer" />
     <SUITE FILE_PATH="coverage/backend$memory.coverage" NAME="memory 커버리지 결과" MODIFIED="1769003883819" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/langgraph_tutorial/memory" />

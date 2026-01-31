@@ -1,27 +1,24 @@
-from datetime import datetime
+import json
+import logging
+import os
+import uuid
 from typing import Annotated
-import jwt
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, Depends, status
-from langchain_core.messages import HumanMessage
-from langchain_core.prompts import message
-from langchain_core.runnables import RunnableConfig
-from pydantic import ValidationError
-from requests import session
 
-from app.agent.menu_recommend.neo4j_db import Neo4jService, Neo4jManager
-from app.clients.naver import naver_search_client
-from app.clients.naver import find_my_office
+import jwt
+from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect, status
+from langchain_core.messages import HumanMessage
+from langchain_core.runnables import RunnableConfig
+from langchain_openai import ChatOpenAI
+from pydantic import ValidationError
+
+from app.agent.menu_recommend.agent import UserInfo, workflow
+from app.agent.menu_recommend.neo4j_db import Neo4jManager, Neo4jService
+from app.agent.menu_recommend.state import init_agent_state
+from app.api.deps import SessionDep  # 템플릿의 의존성 활용
+from app.clients.naver import find_my_office, naver_search_client
 from app.core import security
 from app.core.config import settings
-from app.api.deps import SessionDep, TokenDep  # 템플릿의 의존성 활용
-from app.infra.repository.rdb import RDBRepository
 from app.models import TokenPayload, User
-from app.agent.menu_recommend.agent import graph
-from app.agent.menu_recommend.state import init_agent_state
-from app.agent.menu_recommend.agent import UserInfo
-from langchain_openai import ChatOpenAI
-import logging
-import json
 
 agent_executor = ChatOpenAI(model="gpt-4o")
 logger = logging.getLogger(__name__)
@@ -32,18 +29,13 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 
 
 # WebSocket용 인증 함수
-def get_current_user_ws(
-        session: SessionDep,
-        token: str = Query(...)
-) -> User | None:
+def get_current_user_ws(session: SessionDep, token: str = Query(...)) -> User | None:
     """
     WebSocket 연결 시 쿼리 파라미터로 토큰을 받아 유효성을 검증하고 유저를 반환합니다.
     실패 시 None을 반환하거나 예외를 발생시킬 수 있습니다.
     """
     try:
-        payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
-        )
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[security.ALGORITHM])
         token_data = TokenPayload(**payload)
     except (jwt.InvalidTokenError, ValidationError):
         return None
@@ -54,7 +46,7 @@ def get_current_user_ws(
     return user
 
 
-def return_update_state(msg: str, state: dict) -> dict:
+def update_state(msg: str, state: dict) -> dict:
     user_msg = json.loads(msg)
 
     query = user_msg["text"]
@@ -62,18 +54,32 @@ def return_update_state(msg: str, state: dict) -> dict:
         lat = user_msg["location"]["lat"]
         lng = user_msg["location"]["lng"]
         state["user_info"] = UserInfo(lat=lat, lng=lng)
-    state["messages"] = [HumanMessage(content=query)]
+    state["query"] = query
     return state
+
+
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from langgraph.store.postgres import AsyncPostgresStore
+
+from app.core.db import connection_pool
+
+
+async def get_langgraph_storage():
+    async with connection_pool.connection() as conn:
+        # 이미 테이블은 lifespan에서 생성되었으므로 setup 없이 즉시 반환
+        yield AsyncPostgresSaver(conn), AsyncPostgresStore(conn)
 
 
 @router.websocket("/menu-recommend/ws")
 async def websocket_endpoint(
-        websocket: WebSocket,
-        # WebSocket 연결 시 Query Parameter로 token을 받습니다.
-        # 예: ws://localhost:8000/api/v1/chat/ws?token=eyJhbG...
-        session: SessionDep,
-        user: Annotated[User | None, Depends(get_current_user_ws)],
-
+    websocket: WebSocket,
+    # WebSocket 연결 시 Query Parameter로 token을 받습니다.
+    # 예: ws://localhost:8000/api/v1/chat/ws?token=eyJhbG...
+    session: SessionDep,
+    user: Annotated[User | None, Depends(get_current_user_ws)],
+    storage: Annotated[
+        tuple[AsyncPostgresSaver, AsyncPostgresStore], Depends(get_langgraph_storage)
+    ],
 ):
     # 1. 인증 실패 시 즉시 연결 종료 (Policy Violation)
     if user is None:
@@ -94,20 +100,26 @@ async def websocket_endpoint(
     # 연결된 유저 로깅 (선택)
     logger.info(f"User connected: {user.email}")
 
-    # initial_state = init_agent_state(user, message="안녕")
-    # config = RunnableConfig(
-    #     run_name="test",
-    #     configurable={
-    #         "rdb_session": session,
-    #     }
-    # )
+    thread_id = str(user.id)  # 현재는 1:1 채팅이라 동일하게 설정
 
+    saver, store = storage
     state = {
         "user_id": str(user.id),
-        "user_info": UserInfo()
+        "request_id": str(uuid.uuid4()),
+        "user_info": UserInfo(),
     }
 
-    config = RunnableConfig(configurable={"neo4j_service": Neo4jManager.get_service()})
+    config = {
+        "configurable": {
+            "thread_id": thread_id,
+            "user_id": str(user.id),
+            "neo4j_service": Neo4jManager.get_service(),
+            "store": store,
+        }
+    }
+    config = RunnableConfig(**config)
+
+    graph = workflow.compile(checkpointer=saver, store=store)
 
     try:
         while True:
@@ -117,14 +129,10 @@ async def websocket_endpoint(
             # 예: response = await agent_executor.ainvoke({"input": data, "user_id": user.id})
 
             try:
-                print("사용자 질문 : ", data, type(data))
+                state = update_state(msg=data, state=state)
 
-                state = return_update_state(msg=data, state=state)
-
-                response = await graph.ainvoke(
-                    state,config=config)
-                print("Agent 응답 : ", response["messages"][-1].content)
-                await websocket.send_text(response["messages"][-1].content)
+                response = await graph.ainvoke(state, config=config)
+                await websocket.send_text(response["answer"].content)
             except Exception as e:
                 logger.error(f"Agent Execution Error: {e}")
                 await websocket.send_text(f"Error: {str(e)}")
@@ -134,16 +142,18 @@ async def websocket_endpoint(
 
 
 @router.get("/test")
-async def conversation_handler(session: SessionDep,
-                               user: Annotated[User | None, Depends(get_current_user_ws)], ):
+async def conversation_handler(
+    session: SessionDep,
+    user: Annotated[User | None, Depends(get_current_user_ws)],
+):
     initial_state = init_agent_state(user, message="안녕")
     config = RunnableConfig(
         run_name="test",
         configurable={
             "rdb_session": session,
-        }
+        },
     )
-
+    graph = workflow.compile()
     print("그래프 결과", await graph.ainvoke(initial_state, config=config))
 
 
@@ -161,23 +171,20 @@ async def naver_local_search_handler(query: str):
 
 @router.get("/menu-chat")
 async def menu_chat(
-        query: str = Query(...),
-
+    query: str = Query(...),
 ):
-    response = await graph.ainvoke({"user_id": "string", "messages": [HumanMessage(content=query)]})
+    graph = workflow.compile()
+    response = await graph.ainvoke(
+        {"user_id": "string", "messages": [HumanMessage(content=query)]}
+    )
     print(response)
     return response
-
-
-import os
 
 
 @router.get("/reset-db")
 async def reset_db_handler():
     db = Neo4jService(
-        os.getenv("NEO4J_URI"),
-        os.getenv("NEO4J_USER"),
-        os.getenv("NEO4J_PASSWORD")
+        os.getenv("NEO4J_URI"), os.getenv("NEO4J_USER"), os.getenv("NEO4J_PASSWORD")
     )
     await db.reset_db()
     return {"msg": "success"}

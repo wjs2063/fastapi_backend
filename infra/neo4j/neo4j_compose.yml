@@ -1,14 +1,20 @@
 services:
   neo4j:
     image: neo4j:latest
-    volumes:
-        - ./neo4j/logs:/logs
-        - ./neo4j/config:/config
-        - ./neo4j/data:/data
-        - ./neo4j/plugins:/plugins
-    environment:
-        - NEO4J_AUTH=neo4j/MyPassWord@
+    container_name: neo4j-ai
     ports:
-      - "7474:7474"
-      - "7687:7687"
-    restart: always
+      - "7474:7474" # Browser (HTTP)
+      - "7687:7687" # Bolt (Python 연결용)
+    environment:
+      # 비밀번호 설정 (예제와 동일하게 유지)
+      - NEO4J_AUTH=neo4j/MyPassWord@
+      # 공식 이미지에서 APOC을 자동으로 다운로드 및 설치하게 함
+      - NEO4J_PLUGINS=["apoc"]
+      # LangChain이 시스템 프로시저에 접근할 수 있도록 보안 해제
+      - NEO4J_dbms_security_procedures_unrestricted=apoc.*
+      - NEO4J_dbms_security_procedures_allowlist=apoc.*
+    volumes:
+      - ./neo4j/data:/data
+      - ./neo4j/logs:/logs
+      - ./neo4j/import:/import
+      - ./neo4j/plugins:/plugins
