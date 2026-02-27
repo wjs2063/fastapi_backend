@@ -4,7 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from langchain_core.runnables import RunnableConfig
 from langchain_openai import ChatOpenAI
-from langfuse import get_client, propagate_attributes
+from langfuse import get_client, observe, propagate_attributes
 from langfuse.langchain import CallbackHandler as langfuse_handler
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.store.postgres import AsyncPostgresStore
@@ -70,3 +70,46 @@ async def custom_chat(
         ):
             response = await graph.ainvoke(state, config=config)
             return response
+
+
+@router.post("/observe-chat")
+async def custom_chat(
+    query: str,
+    user_id: str,
+    request_id: str,
+    storage: Annotated[
+        tuple[AsyncPostgresSaver, AsyncPostgresStore], Depends(get_langgraph_storage)
+    ],
+):
+    return await conversation_handler(user_id, query, storage, request_id)
+
+
+@observe(name="trace_chat")
+async def conversation_handler(
+    user_id: str, query: str, storage, request_id: str | None = None
+):
+    # 트레이스 및 생성(generation) 기록
+    session_id = ":".join([user_id, request_id if request_id else str(uuid.uuid4())])
+
+    saver, store = storage
+    state = {
+        "user_id": user_id,
+        "request_id": str(uuid.uuid4()),
+        "user_info": UserInfo(),
+    }
+
+    config = RunnableConfig(
+        configurable={
+            "thread_id": user_id,
+            "user_id": user_id,
+            "neo4j_service": Neo4jManager.get_service(),
+            "store": store,
+        },
+        callbacks=[langfuse_handler()],
+    )
+
+    graph = workflow.compile(checkpointer=saver, store=store)
+    with propagate_attributes(session_id=session_id, metadata={"env": "test"}):
+        state = update_state(query=query, state=state)
+        response = await graph.ainvoke(state, config=config)
+        return response
