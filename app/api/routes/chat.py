@@ -10,7 +10,7 @@ from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_openai import ChatOpenAI
 from pydantic import ValidationError
-
+from fastapi import FastAPI,Request,Depends,status
 from app.agent.menu_recommend.agent import UserInfo, workflow
 from app.agent.menu_recommend.neo4j_db import Neo4jManager, Neo4jService
 from app.agent.menu_recommend.state import init_agent_state
@@ -188,3 +188,16 @@ async def reset_db_handler():
     )
     await db.reset_db()
     return {"msg": "success"}
+
+
+async def get_data():
+    for i in range(3):
+        yield i
+
+
+@router.get("/async")
+async def async_handler():
+    async for data in get_data():
+        print(data)
+
+

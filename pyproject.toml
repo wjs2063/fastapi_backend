@@ -28,6 +28,8 @@ dependencies = [
     "neo4j>=6.0",
     "aiohttp>=3.13.3",
     "certifi>=2024.8.30",
+    "langchain-classic>=1.0.1",
+    "langfuse>=3.14.5",
 ]
 
 [tool.uv]
