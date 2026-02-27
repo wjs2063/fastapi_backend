@@ -12,6 +12,7 @@ from langchain_core.messages import (
 )
 from langchain_core.runnables import RunnableConfig
 from langchain_openai import ChatOpenAI
+from langfuse import observe
 from langgraph.graph import END, START, StateGraph
 from langgraph.store.postgres import AsyncPostgresStore
 from pydantic import BaseModel, Field
@@ -162,6 +163,7 @@ async def resolve_location(state: AgentState, config: RunnableConfig):
 
 
 # --- 노드 구현 ---
+@observe(name="get_preferences")
 async def load_preference(state: AgentState, config: RunnableConfig):
     db = config["configurable"].get("neo4j_service")
     prefs = await db.get_user_context(state["user_id"])
