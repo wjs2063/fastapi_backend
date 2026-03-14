@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.routes import chat, items, langfuse_router, login, private, users, utils
+from app.api.routes import agent_memory, chat, items, langfuse_router, login, private, users, utils
 from app.core.config import settings
 
 api_router = APIRouter()
@@ -10,6 +10,7 @@ api_router.include_router(utils.router)
 api_router.include_router(items.router)
 api_router.include_router(langfuse_router.router)
 api_router.include_router(chat.router)
+api_router.include_router(agent_memory.router)
 
 
 if settings.ENVIRONMENT == "local":

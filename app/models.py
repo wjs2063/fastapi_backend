@@ -5,7 +5,8 @@ from typing import Optional
 
 from pydantic import EmailStr
 from sqlmodel import Field, Relationship, SQLModel
-from sqlalchemy import text
+from sqlalchemy import text, Column, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from uuid import UUID
 
 
@@ -196,5 +197,242 @@ class MealLogUpdate(SQLModel):
 
 class MealLogPublic(MealLogBase):
     id: int
+    created_at: datetime
+    updated_at: datetime
+
+
+# --- [Node Definition Models] ---
+
+class NodeDefinitionBase(SQLModel):
+    label: str = Field(max_length=100)
+    description: str | None = Field(default=None, max_length=500)
+
+
+class NodeDefinitionCreate(NodeDefinitionBase):
+    pass
+
+
+class NodeDefinitionUpdate(SQLModel):
+    label: str | None = Field(default=None, max_length=100)
+    description: str | None = None
+
+
+class NodeDefinition(NodeDefinitionBase, table=True):
+    __tablename__ = "node_definition"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    created_at: datetime = Field(
+        default_factory=datetime.now,
+        nullable=False,
+        sa_column_kwargs={"server_default": text("current_timestamp(0)")}
+    )
+    updated_at: datetime = Field(
+        default_factory=datetime.now,
+        nullable=False,
+        sa_column_kwargs={
+            "server_default": text("current_timestamp(0)"),
+            "onupdate": text("current_timestamp(0)")
+        }
+    )
+    entity_definitions: list["NodeEntityDefinition"] = Relationship(
+        back_populates="node",
+        cascade_delete=True,
+        sa_relationship_kwargs={"lazy": "selectin"}
+    )
+    relations: list["RelationDefinition"] = Relationship(back_populates="node_definition")
+
+
+class NodeEntityDefinitionBase(SQLModel):
+    key: str = Field(max_length=100)
+    value_type: str = Field(default="str", max_length=50)
+    description: str = Field(max_length=500)
+    example_value: str | None = Field(default=None, max_length=255)
+    is_required: bool = Field(default=False)
+
+
+class NodeEntityDefinitionCreate(NodeEntityDefinitionBase):
+    pass
+
+
+class NodeEntityDefinitionUpdate(SQLModel):
+    key: str | None = Field(default=None, max_length=100)
+    value_type: str | None = Field(default=None, max_length=50)
+    description: str | None = Field(default=None, max_length=500)
+    example_value: str | None = None
+    is_required: bool | None = None
+
+
+class NodeEntityDefinition(NodeEntityDefinitionBase, table=True):
+    __tablename__ = "node_entity_definition"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    node_definition_id: uuid.UUID = Field(
+        foreign_key="node_definition.id",
+        nullable=False,
+        ondelete="CASCADE"
+    )
+    node: NodeDefinition | None = Relationship(back_populates="entity_definitions")
+    created_at: datetime = Field(
+        default_factory=datetime.now,
+        nullable=False,
+        sa_column_kwargs={"server_default": text("current_timestamp(0)")}
+    )
+    updated_at: datetime = Field(
+        default_factory=datetime.now,
+        nullable=False,
+        sa_column_kwargs={
+            "server_default": text("current_timestamp(0)"),
+            "onupdate": text("current_timestamp(0)")
+        }
+    )
+
+
+class NodeEntityDefinitionPublic(NodeEntityDefinitionBase):
+    model_config = {"from_attributes": True}
+    id: uuid.UUID
+    node_definition_id: uuid.UUID
+    created_at: datetime
+    updated_at: datetime
+
+
+class NodeDefinitionPublic(NodeDefinitionBase):
+    model_config = {"from_attributes": True}
+    id: uuid.UUID
+    created_at: datetime
+    updated_at: datetime
+    entity_definitions: list[NodeEntityDefinitionPublic] = []
+
+
+class NodesPublic(SQLModel):
+    data: list[NodeDefinitionPublic]
+    count: int
+
+
+# --- [Agent Memory Config Models] ---
+
+# RelationDefinition: Domain-Action 당 Neo4j Relation 타입 정의
+class RelationDefinitionBase(SQLModel):
+    domain_name: str = Field(max_length=100)
+    action_name: str | None = Field(default=None, max_length=100)  # None = 도메인 레벨
+    relation_type: str = Field(max_length=100)  # Neo4j relation type e.g. "LIKES_FOOD"
+    description: str = Field(max_length=500)
+    target_node_label: str = Field(max_length=100)  # Neo4j target node label e.g. "Food"
+    target_node_description: str | None = Field(default=None, max_length=500)  # 노드 설명
+    node_definition_id: uuid.UUID | None = Field(default=None)  # FK to NodeDefinition
+    is_active: bool = Field(default=True)
+    ttl_seconds: int | None = Field(default=None)  # Cache TTL in seconds (for future use)
+
+
+class RelationDefinitionCreate(RelationDefinitionBase):
+    pass
+
+
+class RelationDefinitionUpdate(SQLModel):
+    relation_type: str | None = Field(default=None, max_length=100)
+    description: str | None = Field(default=None, max_length=500)
+    target_node_label: str | None = Field(default=None, max_length=100)
+    target_node_description: str | None = None
+    node_definition_id: uuid.UUID | None = None
+    is_active: bool | None = None
+    ttl_seconds: int | None = None
+
+
+class RelationDefinition(RelationDefinitionBase, table=True):
+    __tablename__ = "relation_definition"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    node_definition_id: uuid.UUID | None = Field(
+        default=None,
+        sa_column=Column(
+            PG_UUID(as_uuid=True),
+            ForeignKey("node_definition.id", ondelete="SET NULL"),
+            nullable=True,
+        )
+    )
+    created_at: datetime = Field(
+        default_factory=datetime.now,
+        nullable=False,
+        sa_column_kwargs={"server_default": text("current_timestamp(0)")}
+    )
+    updated_at: datetime = Field(
+        default_factory=datetime.now,
+        nullable=False,
+        sa_column_kwargs={
+            "server_default": text("current_timestamp(0)"),
+            "onupdate": text("current_timestamp(0)")
+        }
+    )
+    entity_definitions: list["EntityDefinition"] = Relationship(
+        back_populates="relation",
+        cascade_delete=True,
+        sa_relationship_kwargs={"lazy": "selectin"}
+    )
+    node_definition: NodeDefinition | None = Relationship(
+        back_populates="relations",
+        sa_relationship_kwargs={"lazy": "selectin"}
+    )
+
+
+class RelationDefinitionPublic(RelationDefinitionBase):
+    model_config = {"from_attributes": True}
+    id: uuid.UUID
+    created_at: datetime
+    updated_at: datetime
+    entity_definitions: list["EntityDefinitionPublic"] = []
+    node_definition_id: uuid.UUID | None = None
+    node_definition: NodeDefinitionPublic | None = None
+
+
+class RelationsPublic(SQLModel):
+    data: list[RelationDefinitionPublic]
+    count: int
+
+
+# EntityDefinition: Relation에서 추출할 key-value 엔티티 정의
+class EntityDefinitionBase(SQLModel):
+    key: str = Field(max_length=100)
+    value_type: str = Field(default="str", max_length=50)  # "str", "int", "float", "bool", "list"
+    description: str = Field(max_length=500)
+    example_value: str | None = Field(default=None, max_length=255)
+    is_required: bool = Field(default=False)
+
+
+class EntityDefinitionCreate(EntityDefinitionBase):
+    pass
+
+
+class EntityDefinitionUpdate(SQLModel):
+    key: str | None = Field(default=None, max_length=100)
+    value_type: str | None = Field(default=None, max_length=50)
+    description: str | None = Field(default=None, max_length=500)
+    example_value: str | None = None
+    is_required: bool | None = None
+
+
+class EntityDefinition(EntityDefinitionBase, table=True):
+    __tablename__ = "entity_definition"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    relation_definition_id: uuid.UUID = Field(
+        foreign_key="relation_definition.id",
+        nullable=False,
+        ondelete="CASCADE"
+    )
+    relation: RelationDefinition | None = Relationship(back_populates="entity_definitions")
+    created_at: datetime = Field(
+        default_factory=datetime.now,
+        nullable=False,
+        sa_column_kwargs={"server_default": text("current_timestamp(0)")}
+    )
+    updated_at: datetime = Field(
+        default_factory=datetime.now,
+        nullable=False,
+        sa_column_kwargs={
+            "server_default": text("current_timestamp(0)"),
+            "onupdate": text("current_timestamp(0)")
+        }
+    )
+
+
+class EntityDefinitionPublic(EntityDefinitionBase):
+    model_config = {"from_attributes": True}
+    id: uuid.UUID
+    relation_definition_id: uuid.UUID
     created_at: datetime
     updated_at: datetime
