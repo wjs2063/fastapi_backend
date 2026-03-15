@@ -2,9 +2,11 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 from sqlmodel import func, select
 
-from app.api.deps import CurrentUser, SessionDep
+from app.api.deps import SessionDep
+from app.agent.menu_recommend.neo4j_db import Neo4jManager
 from app.models import (
     EntityDefinition, EntityDefinitionCreate, EntityDefinitionPublic, EntityDefinitionUpdate,
     Message,
@@ -19,12 +21,79 @@ from datetime import datetime
 router = APIRouter(prefix="/agent-memory", tags=["agent-memory"])
 
 
+# ── Neo4j 관리 ─────────────────────────────────────────────────
+
+class Neo4jQueryRequest(BaseModel):
+    cypher: str
+    params: dict | None = None
+
+
+class Neo4jQueryResponse(BaseModel):
+    cypher: str
+    row_count: int
+    columns: list[str]
+    rows: list[dict]
+
+
+class Neo4jStatsResponse(BaseModel):
+    total_nodes: int
+    total_relationships: int
+    nodes_by_label: dict[str, int]
+    relationships_by_type: dict[str, int]
+
+
+@router.post("/neo4j/reset", response_model=Message)
+async def reset_neo4j() -> Any:
+    """Neo4j 그래프 DB 전체 초기화 (모든 노드 및 관계 삭제)."""
+    try:
+        service = Neo4jManager.get_service()
+        await service.reset_db()
+        return Message(message="Neo4j DB가 초기화되었습니다.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Neo4j 초기화 실패: {str(e)}")
+
+
+@router.post("/neo4j/query", response_model=Neo4jQueryResponse)
+async def run_neo4j_query(*, body: Neo4jQueryRequest) -> Any:
+    """
+    임의의 Cypher 쿼리를 실행하고 결과를 반환합니다.
+
+    [요청 예시]
+    {
+        "cypher": "MATCH (u:User)-[r:PREFERS]->(p:Preference) RETURN u.id, p.category, p.value LIMIT 10",
+        "params": {}
+    }
+    """
+    try:
+        service = Neo4jManager.get_service()
+        rows = await service.run_query(body.cypher, body.params)
+        columns = list(rows[0].keys()) if rows else []
+        return Neo4jQueryResponse(
+            cypher=body.cypher,
+            row_count=len(rows),
+            columns=columns,
+            rows=rows,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"쿼리 실행 실패: {str(e)}")
+
+
+@router.get("/neo4j/stats", response_model=Neo4jStatsResponse)
+async def get_neo4j_stats() -> Any:
+    """Neo4j 그래프 DB 통계 (노드 라벨별 수, 관계 타입별 수, 전체 총합)."""
+    try:
+        service = Neo4jManager.get_service()
+        stats = await service.get_stats()
+        return Neo4jStatsResponse(**stats)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"통계 조회 실패: {str(e)}")
+
+
 # ── Relations ──────────────────────────────────────────────────
 
 @router.get("/relations", response_model=RelationsPublic)
 def list_relations(
     session: SessionDep,
-    current_user: CurrentUser,
     domain_name: str | None = None,
     action_name: str | None = None,
     skip: int = 0,
@@ -49,11 +118,8 @@ def list_relations(
 def create_relation(
     *,
     session: SessionDep,
-    current_user: CurrentUser,
     relation_in: RelationDefinitionCreate,
 ) -> Any:
-    if not current_user.is_superuser:
-        raise HTTPException(status_code=403, detail="슈퍼유저만 접근 가능합니다.")
     relation = RelationDefinition.model_validate(relation_in)
     session.add(relation)
     session.commit()
@@ -65,7 +131,6 @@ def create_relation(
 def get_relation(
     *,
     session: SessionDep,
-    current_user: CurrentUser,
     relation_id: uuid.UUID,
 ) -> Any:
     relation = session.get(RelationDefinition, relation_id)
@@ -78,12 +143,9 @@ def get_relation(
 def update_relation(
     *,
     session: SessionDep,
-    current_user: CurrentUser,
     relation_id: uuid.UUID,
     relation_in: RelationDefinitionUpdate,
 ) -> Any:
-    if not current_user.is_superuser:
-        raise HTTPException(status_code=403, detail="슈퍼유저만 접근 가능합니다.")
     relation = session.get(RelationDefinition, relation_id)
     if not relation:
         raise HTTPException(status_code=404, detail="RelationDefinition not found")
@@ -100,11 +162,8 @@ def update_relation(
 def delete_relation(
     *,
     session: SessionDep,
-    current_user: CurrentUser,
     relation_id: uuid.UUID,
 ) -> Message:
-    if not current_user.is_superuser:
-        raise HTTPException(status_code=403, detail="슈퍼유저만 접근 가능합니다.")
     relation = session.get(RelationDefinition, relation_id)
     if not relation:
         raise HTTPException(status_code=404, detail="RelationDefinition not found")
@@ -119,12 +178,9 @@ def delete_relation(
 def add_entity(
     *,
     session: SessionDep,
-    current_user: CurrentUser,
     relation_id: uuid.UUID,
     entity_in: EntityDefinitionCreate,
 ) -> Any:
-    if not current_user.is_superuser:
-        raise HTTPException(status_code=403, detail="슈퍼유저만 접근 가능합니다.")
     relation = session.get(RelationDefinition, relation_id)
     if not relation:
         raise HTTPException(status_code=404, detail="RelationDefinition not found")
@@ -139,12 +195,9 @@ def add_entity(
 def update_entity(
     *,
     session: SessionDep,
-    current_user: CurrentUser,
     entity_id: uuid.UUID,
     entity_in: EntityDefinitionUpdate,
 ) -> Any:
-    if not current_user.is_superuser:
-        raise HTTPException(status_code=403, detail="슈퍼유저만 접근 가능합니다.")
     entity = session.get(EntityDefinition, entity_id)
     if not entity:
         raise HTTPException(status_code=404, detail="EntityDefinition not found")
@@ -161,11 +214,8 @@ def update_entity(
 def delete_entity(
     *,
     session: SessionDep,
-    current_user: CurrentUser,
     entity_id: uuid.UUID,
 ) -> Message:
-    if not current_user.is_superuser:
-        raise HTTPException(status_code=403, detail="슈퍼유저만 접근 가능합니다.")
     entity = session.get(EntityDefinition, entity_id)
     if not entity:
         raise HTTPException(status_code=404, detail="EntityDefinition not found")
@@ -179,7 +229,6 @@ def delete_entity(
 @router.get("/nodes", response_model=NodesPublic)
 def list_nodes(
     session: SessionDep,
-    current_user: CurrentUser,
     skip: int = 0,
     limit: int = 100,
 ) -> Any:
@@ -192,11 +241,8 @@ def list_nodes(
 def create_node(
     *,
     session: SessionDep,
-    current_user: CurrentUser,
     node_in: NodeDefinitionCreate,
 ) -> Any:
-    if not current_user.is_superuser:
-        raise HTTPException(status_code=403, detail="슈퍼유저만 접근 가능합니다.")
     node = NodeDefinition.model_validate(node_in)
     session.add(node)
     session.commit()
@@ -208,7 +254,6 @@ def create_node(
 def get_node(
     *,
     session: SessionDep,
-    current_user: CurrentUser,
     node_id: uuid.UUID,
 ) -> Any:
     node = session.get(NodeDefinition, node_id)
@@ -221,12 +266,9 @@ def get_node(
 def update_node(
     *,
     session: SessionDep,
-    current_user: CurrentUser,
     node_id: uuid.UUID,
     node_in: NodeDefinitionUpdate,
 ) -> Any:
-    if not current_user.is_superuser:
-        raise HTTPException(status_code=403, detail="슈퍼유저만 접근 가능합니다.")
     node = session.get(NodeDefinition, node_id)
     if not node:
         raise HTTPException(status_code=404, detail="NodeDefinition not found")
@@ -243,11 +285,8 @@ def update_node(
 def delete_node(
     *,
     session: SessionDep,
-    current_user: CurrentUser,
     node_id: uuid.UUID,
 ) -> Message:
-    if not current_user.is_superuser:
-        raise HTTPException(status_code=403, detail="슈퍼유저만 접근 가능합니다.")
     node = session.get(NodeDefinition, node_id)
     if not node:
         raise HTTPException(status_code=404, detail="NodeDefinition not found")
@@ -260,12 +299,9 @@ def delete_node(
 def add_node_entity(
     *,
     session: SessionDep,
-    current_user: CurrentUser,
     node_id: uuid.UUID,
     entity_in: NodeEntityDefinitionCreate,
 ) -> Any:
-    if not current_user.is_superuser:
-        raise HTTPException(status_code=403, detail="슈퍼유저만 접근 가능합니다.")
     node = session.get(NodeDefinition, node_id)
     if not node:
         raise HTTPException(status_code=404, detail="NodeDefinition not found")
@@ -280,12 +316,9 @@ def add_node_entity(
 def update_node_entity(
     *,
     session: SessionDep,
-    current_user: CurrentUser,
     entity_id: uuid.UUID,
     entity_in: NodeEntityDefinitionUpdate,
 ) -> Any:
-    if not current_user.is_superuser:
-        raise HTTPException(status_code=403, detail="슈퍼유저만 접근 가능합니다.")
     entity = session.get(NodeEntityDefinition, entity_id)
     if not entity:
         raise HTTPException(status_code=404, detail="NodeEntityDefinition not found")
@@ -302,11 +335,8 @@ def update_node_entity(
 def delete_node_entity(
     *,
     session: SessionDep,
-    current_user: CurrentUser,
     entity_id: uuid.UUID,
 ) -> Message:
-    if not current_user.is_superuser:
-        raise HTTPException(status_code=403, detail="슈퍼유저만 접근 가능합니다.")
     entity = session.get(NodeEntityDefinition, entity_id)
     if not entity:
         raise HTTPException(status_code=404, detail="NodeEntityDefinition not found")
@@ -325,7 +355,6 @@ def get_config(
 ) -> Any:
     """
     챗봇이 사용할 RelationDefinition 설정 조회.
-    인증 불필요 - 챗봇 서비스에서 직접 호출.
     is_active=True인 항목만 반환.
     node_definition_id가 있는 경우 node의 entity_definitions를 병합하여 반환.
     """
@@ -345,7 +374,6 @@ def get_config(
     result = []
     for r in relations:
         r_public = RelationDefinitionPublic.model_validate(r)
-        # node_definition_id가 있으면 node의 entity를 우선 사용
         if r.node_definition_id and r.node_definition:
             r_public.entity_definitions = [
                 EntityDefinitionPublic(

@@ -318,6 +318,8 @@ class RelationDefinitionBase(SQLModel):
     target_node_description: str | None = Field(default=None, max_length=500)  # 노드 설명
     node_definition_id: uuid.UUID | None = Field(default=None)  # FK to NodeDefinition
     is_active: bool = Field(default=True)
+    is_global: bool = Field(default=False)  # True: 공유 노드 (장소/음식점 등, 크로스 유저 탐색 허브)
+                                            # False: 유저 전용 노드 (개인 선호/메모 등, private)
     ttl_seconds: int | None = Field(default=None)  # Cache TTL in seconds (for future use)
 
 
@@ -332,6 +334,7 @@ class RelationDefinitionUpdate(SQLModel):
     target_node_description: str | None = None
     node_definition_id: uuid.UUID | None = None
     is_active: bool | None = None
+    is_global: bool | None = None
     ttl_seconds: int | None = None
 
 

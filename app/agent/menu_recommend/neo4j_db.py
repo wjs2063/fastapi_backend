@@ -61,6 +61,58 @@ class Neo4jService:
             except Exception as e:
                 raise
 
+    async def run_query(self, cypher: str, params: dict | None = None) -> list[dict]:
+        """
+        임의의 Cypher 쿼리를 실행하고 결과를 반환합니다.
+        관리자 디버깅 및 그래프 조회용.
+
+        반환: 각 레코드를 dict로 변환한 리스트
+        """
+        async with self.driver.session() as session:
+            result = await session.run(cypher, params or {})
+            records = [record.data() async for record in result]
+            return records
+
+    async def get_stats(self) -> dict:
+        """
+        그래프 DB 전체 통계를 반환합니다.
+        노드 라벨별 카운트, 관계 타입별 카운트, 총합을 포함합니다.
+        """
+        async with self.driver.session() as session:
+            # 노드 라벨별 카운트
+            node_result = await session.run(
+                "CALL db.labels() YIELD label "
+                "CALL { WITH label MATCH (n) WHERE label IN labels(n) RETURN count(n) AS cnt } "
+                "RETURN label, cnt ORDER BY cnt DESC"
+            )
+            node_counts = {r["label"]: r["cnt"] async for r in node_result}
+
+            # 관계 타입별 카운트
+            rel_result = await session.run(
+                "CALL db.relationshipTypes() YIELD relationshipType "
+                "CALL { WITH relationshipType MATCH ()-[r]->() WHERE type(r) = relationshipType RETURN count(r) AS cnt } "
+                "RETURN relationshipType, cnt ORDER BY cnt DESC"
+            )
+            rel_counts = {r["relationshipType"]: r["cnt"] async for r in rel_result}
+
+            # 총합
+            total_result = await session.run(
+                "MATCH (n) RETURN count(n) AS total_nodes"
+            )
+            total_nodes = (await total_result.single())["total_nodes"]
+
+            total_rel_result = await session.run(
+                "MATCH ()-[r]->() RETURN count(r) AS total_rels"
+            )
+            total_rels = (await total_rel_result.single())["total_rels"]
+
+        return {
+            "total_nodes": total_nodes,
+            "total_relationships": total_rels,
+            "nodes_by_label": node_counts,
+            "relationships_by_type": rel_counts,
+        }
+
 
 
 class Neo4jManager:

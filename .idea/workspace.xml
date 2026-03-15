@@ -6,7 +6,9 @@
   <component name="ChangeListManager">
     <list default="true" id="f37d08e1-3c0c-4fb3-b371-6107a73e6e91" name="변경" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pyproject.toml" beforeDir="false" afterPath="$PROJECT_DIR$/pyproject.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/agent/menu_recommend/neo4j_db.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/agent/menu_recommend/neo4j_db.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/api/routes/agent_memory.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/routes/agent_memory.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/models.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../frontend/frontend" beforeDir="false" afterPath="$PROJECT_DIR$/../frontend/frontend" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -258,6 +260,8 @@
       <workItem from="1773456738691" duration="2000" />
       <workItem from="1773456780888" duration="5790000" />
       <workItem from="1773473801091" duration="4293000" />
+      <workItem from="1773491843956" duration="3114000" />
+      <workItem from="1773530253266" duration="6962000" />
     </task>
     <servers />
   </component>
@@ -269,7 +273,7 @@
     <SUITE FILE_PATH="coverage/backend$naver.coverage" NAME="naver 커버리지 결과" MODIFIED="1769224900014" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app/clients" />
     <SUITE FILE_PATH="coverage/backend$initial_data.coverage" NAME="initial_data 커버리지 결과" MODIFIED="1768729045835" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app" />
     <SUITE FILE_PATH="coverage/backend$main.coverage" NAME="uvicorn 커버리지 결과" MODIFIED="1765976334904" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app" />
-    <SUITE FILE_PATH="coverage/backend$uvicorn.coverage" NAME="uvicorn 커버리지 결과" MODIFIED="1773480749717" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app" />
+    <SUITE FILE_PATH="coverage/backend$uvicorn.coverage" NAME="uvicorn 커버리지 결과" MODIFIED="1773545844375" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app" />
     <SUITE FILE_PATH="coverage/backend$.coverage" NAME=" 커버리지 결과" MODIFIED="1769222597019" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/backend$db.coverage" NAME="db 커버리지 결과" MODIFIED="1769690630647" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app/core" />
     <SUITE FILE_PATH="coverage/backend$naver_search.coverage" NAME="naver_search 커버리지 결과" MODIFIED="1769225285390" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app/clients" />
